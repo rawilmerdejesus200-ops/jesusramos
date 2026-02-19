@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🔒 SecureChat - Supabase</title>
+    <!-- Supabase SDK -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff00ff;
+            --neon-purple: #9d00ff;
+            --neon-red: #ff0044;
+            --neon-green: #00ff88;
+            --dark-bg: #0a0a0f;
+            --darker: #050508;
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+        
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+        
+        body {
+            background: var(--dark-bg);
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        .screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .screen.active {
+            display: flex !important;
+        }
+        
+        /* PASSWORD */
+        #scr-password {
+            background: radial-gradient(ellipse at center, #0f0f1a 0%, #000 100%);
+            z-index: 50;
+        }
+        
+        .box {
+            background: rgba(0, 20, 0, 0.95);
+            border: 2px solid var(--neon-blue);
+            border-radius: 15px;
+            padding: 40px 30px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .lock { font-size: 4rem; margin-bottom: 20px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{transform:scale(1)}50%{transform:scale(1.1)} }
+        
+        h1 { font-family: 'Orbitron', sans-serif; font-size: 1.8rem; color: var(--neon-red); margin-bottom: 10px; text-transform: uppercase; }
+        .subtitle { color: #888; margin-bottom: 30px; font-size: 0.9rem; }
+        
+        input {
+            width: 100%;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid var(--neon-blue);
+            border-radius: 10px;
+            padding: 15px;
+            color: var(--neon-blue);
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            text-align: center;
+            letter-spacing: 5px;
+            outline: none;
+            margin-bottom: 20px;
+        }
+        
+        input.error { border-color: var(--neon-red); animation: shake 0.5s; }
+        @keyframes shake { 0%,100%{transform:translateX(0)}25%{transform:translateX(-10px)}75%{transform:translateX(10px)} }
+        
+        button {
+            width: 100%;
+            background: linear-gradient(135deg, var(--neon-red), var(--neon-purple));
+            border: none;
+            border-radius: 10px;
+            padding: 18px;
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        
+        button:active { transform: scale(0.98); }
+        
+        /* USER */
+        #scr-user {
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #000 100%);
+            z-index: 40;
+        }
+        
+        .user-emoji { font-size: 4rem; margin-bottom: 10px; }
+        h2 { font-family: 'Orbitron', sans-serif; font-size: 1.5rem; color: var(--neon-blue); margin-bottom: 30px; }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        
+        .user-btn {
+            background: rgba(0,0,0,0.6);
+            border: 2px solid var(--neon-purple);
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            color: #fff;
+        }
+        
+        .user-btn:hover, .user-btn:active { background: var(--neon-purple); }
+        
+        #customName {
+            width: 100%;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid var(--neon-blue);
+            border-radius: 10px;
+            padding: 15px;
+            color: #fff;
+            font-size: 1rem;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .enter-btn {
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+        }
+        
+        /* WELCOME */
+        #scr-welcome {
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #000 100%);
+            z-index: 30;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .big-emoji { font-size: 5rem; margin-bottom: 20px; }
+        .granted { color: var(--neon-green); font-family: 'Orbitron', sans-serif; font-size: 1.2rem; margin-bottom: 20px; }
+        .title-big { font-family: 'Orbitron', sans-serif; font-size: 2.5rem; background: linear-gradient(45deg, var(--neon-blue), var(--neon-pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 15px; }
+        .ship { font-size: 4rem; margin: 15px 0; }
+        .welcome-name { font-size: 1.5rem; color: var(--neon-blue); margin-top: 20px; }
+        .welcome-name span { color: var(--neon-pink); font-weight: 700; }
+        
+        .joke {
+            background: var(--glass);
+            border: 2px solid var(--neon-purple);
+            border-radius: 20px;
+            padding: 25px;
+            margin-top: 40px;
+            max-width: 350px;
+        }
+        
+        .joke-title { color: var(--neon-pink); font-size: 0.9rem; margin-bottom: 10px; text-transform: uppercase; }
+        .punchline { color: var(--neon-blue); font-weight: 700; margin-top: 10px; font-size: 1.1rem; }
+        
+        /* APP */
+        #scr-app {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            background: var(--darker);
+            z-index: 20;
+        }
+        
+        #scr-app.active { display: flex !important; }
+        
+        header {
+            background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(20,0,40,0.95));
+            padding: 15px 20px;
+            border-bottom: 2px solid var(--neon-purple);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; font-family: 'Orbitron', sans-serif; font-size: 1.2rem; color: var(--neon-blue); }
+        .secure-icon { color: var(--neon-green); animation: pulse 2s infinite; }
+        
+        .actions { display: flex; gap: 10px; align-items: center; }
+        .btn-small {
+            width: auto;
+            background: var(--glass);
+            border: 2px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        
+        .contacts {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .card {
+            background: var(--glass);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+        }
+        
+        .card:hover { border-color: var(--neon-blue); }
+        
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            border: 2px solid var(--neon-blue);
+        }
+        
+        .info h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .badge {
+            font-size: 0.6rem;
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--neon-green);
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+        
+        .preview { color: #888; font-size: 0.9rem; }
+        .typing { color: var(--neon-blue); font-style: italic; }
+        
+        /* CHAT */
+        #scr-chat {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            background: var(--darker);
+            z-index: 25;
+        }
+        
+        #scr-chat.active { display: flex !important; }
+        
+        .chat-head {
+            background: rgba(0,0,0,0.95);
+            padding: 15px 20px;
+            border-bottom: 2px solid var(--neon-purple);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .back {
+            background: none;
+            border: none;
+            color: var(--neon-blue);
+            font-size: 1.8rem;
+            cursor: pointer;
+            width: auto;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .encrypt-notice {
+            text-align: center;
+            color: var(--neon-green);
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(0,255,136,0.05);
+            border-radius: 10px;
+        }
+        
+        .msg {
+            max-width: 80%;
+            margin-bottom: 15px;
+        }
+        
+        .msg.me { margin-left: auto; }
+        
+        .bubble {
+            padding: 12px 18px;
+            border-radius: 20px;
+            font-size: 1rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        
+        .msg.me .bubble {
+            background: linear-gradient(135deg, var(--neon-blue), #0088ff);
+            color: #000;
+            font-weight: 600;
+        }
+        
+        .msg.other .bubble {
+            background: var(--glass);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .msg-author {
+            font-size: 0.75rem;
+            color: var(--neon-pink);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .msg-time {
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 5px;
+            text-align: right;
+        }
+        
+        .msg.me .msg-time { color: rgba(0,0,0,0.5); }
+        
+        .input-area {
+            background: rgba(0,0,0,0.95);
+            padding: 15px;
+            border-top: 2px solid var(--neon-purple);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .btn-icon {
+            width: 45px;
+            height: 45px;
+            background: var(--glass);
+            border: 2px solid var(--neon-blue);
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        
+        #msgInput {
+            flex: 1;
+            background: var(--glass);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 25px;
+            padding: 12px 20px;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+        }
+        
+        #msgInput:focus { border-color: var(--neon-blue); }
+        
+        .btn-send {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            border-radius: 50%;
+            font-size: 1.2rem;
+        }
+        
+        /* EMOJIS */
+        #emojiPanel {
+            display: none;
+            position: absolute;
+            bottom: 80px;
+            left: 10px;
+            right: 10px;
+            background: rgba(10,10,15,0.98);
+            border: 2px solid var(--neon-blue);
+            border-radius: 15px;
+            padding: 15px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+        }
+        
+        #emojiPanel.show { display: grid; }
+        
+        .emoji-btn {
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            padding: 5px;
+        }
+        
+        /* SECRET */
+        #secretBadge {
+            display: none;
+            position: fixed;
+            top: 80px;
+            right: 10px;
+            background: rgba(255,0,0,0.2);
+            border: 2px solid #ff0044;
+            color: #ff0044;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            z-index: 100;
+        }
+        
+        #secretBadge.show { display: block; }
+        
+        #connStatus {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--neon-blue);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <!-- SCREEN 1: PASSWORD -->
+    <div id="scr-password" class="screen active">
+        <div class="box">
+            <div class="lock">🔐</div>
+            <h1>SecureChat</h1>
+            <p class="subtitle">Clave de acceso del grupo</p>
+            <input type="password" id="pwd" placeholder="••••••••" maxlength="8">
+            <button onclick="checkPwd()">ACCEDER</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 2: USER -->
+    <div id="scr-user" class="screen">
+        <div class="box">
+            <div class="user-emoji">🧙‍♀️💥</div>
+            <h2>¿Quién eres?</h2>
+            <div class="grid">
+                <button class="user-btn" onclick="setUser('Reinir')">👤 Reinir</button>
+                <button class="user-btn" onclick="setUser('David')">👤 David</button>
+                <button class="user-btn" onclick="setUser('Brian')">👤 Brian</button>
+                <button class="user-btn" onclick="setUser('Jesús')">👤 Jesús</button>
+            </div>
+            <input type="text" id="customName" placeholder="Otro nombre..." maxlength="12">
+            <button class="enter-btn" onclick="setCustomUser()">ENTRAR</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 3: WELCOME -->
+    <div id="scr-welcome" class="screen">
+        <div class="big-emoji">🧙‍♀️💥</div>
+        <div class="granted">✓ Acceso Concedido</div>
+        <div class="title-big">SecureChat</div>
+        <div class="ship">🚢</div>
+        <div class="welcome-name">Bienvenido <span id="welcomeName">Agente</span></div>
+        <div class="joke">
+            <div class="joke-title">🎭 Prueba de Humor</div>
+            <div>¿Por qué los programadores prefieren el modo oscuro?</div>
+            <div class="punchline">¡Porque la luz atrae a los bugs! 🐛💡</div>
+        </div>
+    </div>
+
+    <!-- SCREEN 4: APP -->
+    <div id="scr-app">
+        <header>
+            <div class="logo">
+                <span class="secure-icon">🔐</span>
+                <span>SecureChat</span>
+                <span>🚢</span>
+            </div>
+            <div class="actions">
+                <span id="myNameDisplay" style="color: var(--neon-blue); font-size: 0.9rem;"></span>
+                <button class="btn-small" onclick="toggleSecret()">🕵️</button>
+                <button class="btn-small" onclick="logout()">Salir</button>
+            </div>
+        </header>
+        <div class="contacts" id="contactsList"></div>
+    </div>
+
+    <!-- SCREEN 5: CHAT -->
+    <div id="scr-chat">
+        <div class="chat-head">
+            <button class="back" onclick="closeChat()">←</button>
+            <div class="avatar" style="width: 40px; height: 40px; font-size: 1.2rem;">👤</div>
+            <div>
+                <div id="chatWith" style="font-weight: 700; font-family: 'Orbitron';"></div>
+                <div id="chatStatus" style="font-size: 0.8rem; color: var(--neon-green);">🟢 En línea</div>
+            </div>
+        </div>
+        <div class="messages" id="msgArea">
+            <div class="encrypt-notice">🔒 Chat en tiempo real</div>
+        </div>
+        <div style="position: relative;">
+            <div id="emojiPanel">
+                <button class="emoji-btn" onclick="addEmoji('😀')">😀</button>
+                <button class="emoji-btn" onclick="addEmoji('😂')">😂</button>
+                <button class="emoji-btn" onclick="addEmoji('🥰')">🥰</button>
+                <button class="emoji-btn" onclick="addEmoji('😎')">😎</button>
+                <button class="emoji-btn" onclick="addEmoji('🤔')">🤔</button>
+                <button class="emoji-btn" onclick="addEmoji('😴')">😴</button>
+                <button class="emoji-btn" onclick="addEmoji('🥳')">🥳</button>
+                <button class="emoji-btn" onclick="addEmoji('😈')">😈</button>
+                <button class="emoji-btn" onclick="addEmoji('👻')">👻</button>
+                <button class="emoji-btn" onclick="addEmoji('🤖')">🤖</button>
+                <button class="emoji-btn" onclick="addEmoji('👽')">👽</button>
+                <button class="emoji-btn" onclick="addEmoji('🎃')">🎃</button>
+                <button class="emoji-btn" onclick="addEmoji('🚢')">🚢</button>
+                <button class="emoji-btn" onclick="addEmoji('🧙‍♀️')">🧙‍♀️</button>
+                <button class="emoji-btn" onclick="addEmoji('💥')">💥</button>
+                <button class="emoji-btn" onclick="addEmoji('🔥')">🔥</button>
+                <button class="emoji-btn" onclick="addEmoji('⚡')">⚡</button>
+                <button class="emoji-btn" onclick="addEmoji('🌟')">🌟</button>
+                <button class="emoji-btn" onclick="addEmoji('🎮')">🎮</button>
+                <button class="emoji-btn" onclick="addEmoji('🚀')">🚀</button>
+                <button class="emoji-btn" onclick="addEmoji('🎯')">🎯</button>
+                <button class="emoji-btn" onclick="addEmoji('🔮')">🔮</button>
+                <button class="emoji-btn" onclick="addEmoji('🗝️')">🗝️</button>
+                <button class="emoji-btn" onclick="addEmoji('🛡️')">🛡️</button>
+            </div>
+        </div>
+        <div class="input-area">
+            <button class="btn-icon" onclick="toggleEmojis()">😀</button>
+            <input type="text" id="msgInput" placeholder="Escribe..." onkeypress="if(event.key==='Enter') sendMessage()">
+            <button class="btn-send" onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+
+    <div id="secretBadge">🔒 MODO ULTRA SECRETO</div>
+    <div id="connStatus">⏳ Conectando...</div>
+
+    <script>
+        // ==================== TUS CREDENCIALES SUPABASE ====================
+        const SUPABASE_URL = "https://xmfoebalplenhtksbjzk.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_1amLCM1jLb-JFtEfjGf4Nw_MIFE15oD";
+        
+        // Inicializar Supabase
+    
